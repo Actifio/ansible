@@ -1,0 +1,76 @@
+##
+# File: getjobs.yml
+##
+---
+- hosts: "{{ acthost }}"
+  # if you need to disbale logging no_log: True
+  no_log: True
+  remote_user: root
+  gather_facts: false
+  port: 26
+
+  vars:
+     debug_file: /tmp/debug.txt
+
+  vars_prompt:
+    name: "job_id"
+    prompt: "Enter the Actifio job name?" 
+    private: no
+
+  tasks:
+
+  - name: Find out the hostID
+    action: shell udsinfo lsjobhistory {{ job_id }} -delim , | grep hostid | cut -d, -f2
+    register: hostid
+  - debug:
+      msg: "{{ hostid.stdout }}"
+
+  - name: Find out the appID
+    action: shell udsinfo lsjobhistory {{ job_id }} -delim , | grep appid | cut -d, -f2
+    register: appid
+  - debug:
+      msg: "{{ appid.stdout }}"
+
+  - name: Find out the hostname
+    action: shell udsinfo lshost {{ hostid.stdout }} -delim , | grep hostname | cut -d, -f2
+    register: hostname2
+  - debug:
+      msg: "{{ hostname2.stdout }}"
+
+  - name: Gather data
+    shell: |
+      echo -e "\n--------------------------------------------------------------\n" > /tmp/{{ job_id }}.txt
+      echo "reportconnectors on {{ hostname2.stdout }}" >> /tmp/{{ job_id }}.txt
+      reportconnectors -w -a {{ hostid.stdout }} >> /tmp/{{ job_id }}.txt
+      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+      udsinfo lshost -delim =  {{ hostid.stdout }} >> /tmp/{{ job_id }}.txt
+      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+      reportapps -w -a {{ appid.stdout }} >> /tmp/{{ job_id }}.txt
+      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+      udsinfo lsapplication -delim =  {{ appid.stdout }} >> /tmp/{{ job_id }}.txt
+      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+      echo "udsinfo lsjobhistory {{ job_id }}" >> /tmp/{{ job_id }}.txt
+      udsinfo lsjobhistory {{ job_id }} >> /tmp/{{ job_id }}.txt
+      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+      echo "grep {{ job_id }} /dumps/udppm.log" >> /tmp/{{ job_id }}.txt
+      grep {{ job_id }} /dumps/udppm.log >> /tmp/{{ job_id }}.txt
+      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+      echo "grep {{ job_id }} /dumps/psrv.log.0" >> /tmp/{{ job_id }}.txt
+      grep {{ job_id }} /dumps/psrv.log.0 >> /tmp/{{ job_id }}.txt
+      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+      udstask fetchconnectorlogs -host {{ hostid.stdout }}
+      echo "grep {{ job_id }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log " >> /tmp/{{ job_id }}.txt
+      grep {{ job_id }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log >> /tmp/{{ job_id }}.txt
+      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+
+  - name: transfer file
+    # copy remote file into local machine
+    # force: no   --- will only copy the file if the file does not exist on the remote server.
+    fetch:
+      src: /tmp/{{ job_id }}.txt
+      dest: ./{{ job_id }}.txt 
+      flat: yes
+  - name: Cleanup the /tmp/output.txt file
+    file:
+      path: /tmp/{{ job_id }}.txt
+      state: absent
