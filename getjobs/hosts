@@ -1,0 +1,7 @@
+## 
+# File: hosts
+##
+
+[sydlab]
+melnabsky ansible_ssh_host=10.65.5.193 ansible_user=root
+sydactsky1 ansible_ssh_host=10.65.5.35 ansible_user=root
