@@ -19,14 +19,14 @@
 
   tasks:
 
-  - name: Find out the hostID
-    action: shell udsinfo lsjobhistory {{ job_id }} -delim , | grep hostid | cut -d, -f2
+  - name: Find out the hostID   # capitalize | lower
+    action: shell udsinfo lsjobhistory {{ job_id | capitalize }} -delim , | grep hostid | cut -d, -f2
     register: hostid
   - debug:
       msg: "{{ hostid.stdout }}"
 
   - name: Find out the appID
-    action: shell udsinfo lsjobhistory {{ job_id }} -delim , | grep appid | cut -d, -f2
+    action: shell udsinfo lsjobhistory {{ job_id | capitalize }} -delim , | grep appid | cut -d, -f2
     register: appid
   - debug:
       msg: "{{ appid.stdout }}"
@@ -49,18 +49,18 @@
       echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
       udsinfo lsapplication -delim =  {{ appid.stdout }} >> /tmp/{{ job_id }}.txt
       echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      echo "udsinfo lsjobhistory {{ job_id }}" >> /tmp/{{ job_id }}.txt
-      udsinfo lsjobhistory {{ job_id }} >> /tmp/{{ job_id }}.txt
+      echo "udsinfo lsjobhistory {{ job_id  | capitalize }}" >> /tmp/{{ job_id }}.txt
+      udsinfo lsjobhistory {{ job_id  | capitalize }} >> /tmp/{{ job_id }}.txt
       echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      echo "grep {{ job_id }} /dumps/udppm.log" >> /tmp/{{ job_id }}.txt
-      grep {{ job_id }} /dumps/udppm.log >> /tmp/{{ job_id }}.txt
+      echo "grep {{ job_id  | capitalize }} /dumps/udppm.log" >> /tmp/{{ job_id }}.txt
+      grep {{ job_id  | capitalize }} /dumps/udppm.log >> /tmp/{{ job_id }}.txt
       echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      echo "grep {{ job_id }} /dumps/psrv.log.0" >> /tmp/{{ job_id }}.txt
-      grep {{ job_id }} /dumps/psrv.log.0 >> /tmp/{{ job_id }}.txt
+      echo "grep {{ job_id  | capitalize }} /dumps/psrv.log.0" >> /tmp/{{ job_id }}.txt
+      grep {{ job_id  | capitalize }} /dumps/psrv.log.0 >> /tmp/{{ job_id }}.txt
       echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
       udstask fetchconnectorlogs -host {{ hostid.stdout }}
-      echo "grep {{ job_id }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log " >> /tmp/{{ job_id }}.txt
-      grep {{ job_id }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log >> /tmp/{{ job_id }}.txt
+      echo "grep {{ job_id  | capitalize }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log " >> /tmp/{{ job_id }}.txt
+      grep {{ job_id  | capitalize }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log >> /tmp/{{ job_id }}.txt
       echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
 
   - name: transfer file
@@ -68,7 +68,7 @@
     # force: no   --- will only copy the file if the file does not exist on the remote server.
     fetch:
       src: /tmp/{{ job_id }}.txt
-      dest: ./{{ job_id }}.txt 
+      dest: ./{{ job_id | capitalize }}.txt 
       flat: yes
   - name: Cleanup the /tmp/output.txt file
     file:
