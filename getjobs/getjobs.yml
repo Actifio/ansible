@@ -3,14 +3,15 @@
 ##
 ---
 - hosts: "{{ acthost }}"
-  # if you need to disbale logging no_log: True
+  # if you need to disable logging no_log: True
   no_log: True
   remote_user: root
   gather_facts: false
   port: 26
 
   vars:
-     debug_file: /tmp/debug.txt
+     debug_file: debug.txt
+     debug_filename: /tmp/debug.txt
 
   vars_prompt:
     name: "job_id"
@@ -37,40 +38,43 @@
   - debug:
       msg: "{{ hostname2.stdout }}"
 
+  - name: Run SARG header
+    shell: |
+       echo -e "\n--------------------------------------------------------------\n" > {{ debug_filename }}
+
+  - name: Run SARG commands
+    shell: |
+       echo "Command: {{item}} " >> {{ debug_filename }}
+       {{item}} >> {{ debug_filename }}
+       echo -e "\n--------------------------------------------------------------\n" >> {{ debug_filename }}
+    with_items:
+       - reportconnectors -w -a {{ hostid.stdout }}
+       - reportapps -w -a {{ appid.stdout }}
+       - udsinfo lshost -delim =  {{ hostid.stdout }}
+       - udsinfo lsapplication -delim =  {{ appid.stdout }}
+       - udsinfo lsjobhistory {{ job_id  | capitalize }}
+       - udstask fetchconnectorlogs -host {{ hostid.stdout }}
+
   - name: Gather data
     shell: |
-      echo -e "\n--------------------------------------------------------------\n" > /tmp/{{ job_id }}.txt
-      echo "reportconnectors on {{ hostname2.stdout }}" >> /tmp/{{ job_id }}.txt
-      reportconnectors -w -a {{ hostid.stdout }} >> /tmp/{{ job_id }}.txt
-      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      udsinfo lshost -delim =  {{ hostid.stdout }} >> /tmp/{{ job_id }}.txt
-      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      reportapps -w -a {{ appid.stdout }} >> /tmp/{{ job_id }}.txt
-      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      udsinfo lsapplication -delim =  {{ appid.stdout }} >> /tmp/{{ job_id }}.txt
-      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      echo "udsinfo lsjobhistory {{ job_id  | capitalize }}" >> /tmp/{{ job_id }}.txt
-      udsinfo lsjobhistory {{ job_id  | capitalize }} >> /tmp/{{ job_id }}.txt
-      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      echo "grep {{ job_id  | capitalize }} /dumps/udppm.log" >> /tmp/{{ job_id }}.txt
-      grep {{ job_id  | capitalize }} /dumps/udppm.log >> /tmp/{{ job_id }}.txt
-      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      echo "grep {{ job_id  | capitalize }} /dumps/psrv.log.0" >> /tmp/{{ job_id }}.txt
-      grep {{ job_id  | capitalize }} /dumps/psrv.log.0 >> /tmp/{{ job_id }}.txt
-      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
-      udstask fetchconnectorlogs -host {{ hostid.stdout }}
-      echo "grep {{ job_id  | capitalize }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log " >> /tmp/{{ job_id }}.txt
-      grep {{ job_id  | capitalize }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log >> /tmp/{{ job_id }}.txt
-      echo -e "\n--------------------------------------------------------------\n" >> /tmp/{{ job_id }}.txt
+      echo "grep {{ job_id  | capitalize }} /dumps/udppm.log" >> {{ debug_filename }}
+      grep {{ job_id  | capitalize }} /dumps/udppm.log >> {{ debug_filename }}
+      echo -e "\n--------------------------------------------------------------\n" >> {{ debug_filename }}
+      echo "grep {{ job_id  | capitalize }} /dumps/psrv.log.0" >> {{ debug_filename }}
+      grep {{ job_id  | capitalize }} /dumps/psrv.log.0 >> {{ debug_filename }}
+      echo -e "\n--------------------------------------------------------------\n" >> {{ debug_filename }}
+      echo "grep {{ job_id  | capitalize }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log " >> {{ debug_filename }}
+      grep {{ job_id  | capitalize }} /dumps/tmp/{{ hostname2.stdout }}/UDSAgent.log >> {{ debug_filename }}
+      echo -e "\n--------------------------------------------------------------\n" >> {{ debug_filename }}
 
   - name: transfer file
     # copy remote file into local machine
     # force: no   --- will only copy the file if the file does not exist on the remote server.
     fetch:
-      src: /tmp/{{ job_id }}.txt
+      src: "{{ debug_filename }}"
       dest: ./{{ job_id | capitalize }}.txt 
       flat: yes
-  - name: Cleanup the /tmp/output.txt file
+  - name: Cleanup the {{ debug_filename }} file
     file:
-      path: /tmp/{{ job_id }}.txt
+      path: "{{ debug_filename }}"
       state: absent
