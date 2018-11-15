@@ -6,7 +6,7 @@
   # if you need to disable logging no_log: True
   no_log: False
   remote_user: root
-  gather_facts: false
+  gather_facts: true
   port: 26
 
   vars:
