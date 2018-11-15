@@ -15,7 +15,7 @@ This script is meant for Actifio internal use only. It also assumes you already 
 The following are customisations required for your environment:  
 - Update or replace the Actifio Sky hostname and IP address in the hosts file:
 - Replace the name of the Actifio Sky hostname and location of the SSH root keys in the build_skinny_sky.sh
-
+- Change the value of the variable for pri_dev_GBsize, per_dev_GBsize, and ded_dev_GBsize
 
 #### Output
 
