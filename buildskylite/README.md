@@ -17,6 +17,8 @@ The following are customisations required for your environment:
 - Replace the name of the Actifio Sky hostname and location of the SSH root keys in the build_skinny_sky.sh
 - Change the value of the variable for pri_dev_GBsize, per_dev_GBsize, and ded_dev_GBsize
 
+You will need to deploy the Sky OVA in vCenter and present three disks (primary, performance/snapshot, and dedup) to the Sky VM. These sizes will need to be set for pri_dev_GBsize, per_dev_GBsize, and ded_dev_GBsize . Best is to have different sizes for each one of the disks, as same size disk may not work for the Ansible script.
+
 #### Output
 
 To kick off the creation, execute the bash script:
