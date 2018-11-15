@@ -1,0 +1,7 @@
+## 
+# File: hosts
+##
+
+[sydlab]
+
+sky811 ansible_ssh_host=10.65.5.221 ansible_user=root
