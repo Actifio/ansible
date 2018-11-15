@@ -1,0 +1,138 @@
+##
+# File: build_skinny_sky.yml
+##
+---
+- hosts: "{{ acthost }}"
+  # if you need to disable logging no_log: True
+  no_log: False
+  remote_user: root
+  gather_facts: false
+  port: 26
+
+  vars:
+     debug_file: debug.txt
+     debug_filename: /tmp/debug.txt
+     output_dir: /var/log/perftest
+     sleep_interval: 2
+     propsfile: /act/psrv/act-sky-props.xml
+     tmp_propsfile: /act/psrv/act-sky-tmp-props.xml
+     vpas_configfile: /dumps/vpas.conf
+     
+     ## cluster_name: lab2
+     pri_dev_GBsize: 200G                  # size of the primary pool
+     per_dev_GBsize: 10G                   # size of the performance pool
+     ded_dev_GBsize: 100G                  # size of the dedup pool
+
+  vars_prompt:
+     name: "cluster_name"
+     prompt: "Enter the name of the new Actifio cluster: " 
+     private: no
+
+  tasks:
+
+  - set_fact: datenow="{{lookup('pipe','date +%Y%m%d_%H%M%S')}}"
+  - debug: var=datenow
+
+  - set_fact: bkup_propsfile="/act/psrv/act-sky-props-{{ datenow }}.xml"
+  - debug: var=bkup_propsfile
+
+  - name: File exists
+    stat: path={{ bkup_propsfile }}
+    register: stat_propsfile
+
+  - debug:
+      msg: "{{ stat_propsfile }}"
+      
+## Copying Files between Directories on Remote Machines
+  - name: Copy file between directories on a remote server
+    copy:
+      src: "{{ propsfile }}"
+      dest: "{{ bkup_propsfile }}"
+      remote_src: yes
+      mode: 0644
+      owner: act
+      group: act
+    when: stat_propsfile.stat.exists == false
+
+  - name: Delete line before min_pri_pool
+    action: shell sed -n -e '/min_pri_pool/{x;d;};1h;1!{x;p;};${x;p;}' {{ propsfile }} > {{ tmp_propsfile }}
+
+  - name: Delete line after min_ded_pool
+    action: shell sed -e '/min_ded_pool/{N;s/\n.*//;}' {{ tmp_propsfile }} > {{ propsfile }}
+
+  - name: Restart psrv1
+    action: shell pgrep psrv
+
+  - name: monit restart psrv
+    action: shell monit restart psrv
+
+  - name: Restart psrv2
+    action: shell pgrep psrv    
+
+  - name: rescan ports for new devices
+    action: shell echo "- - -" > /sys/class/scsi_host/host0/scan
+
+  - name: Find out the {{ pri_dev_GBsize }} LUN provisioned
+    action: shell lsblk -d | grep {{ pri_dev_GBsize }} | cut -d' ' -f1
+    register: pri_dev
+  - debug:
+      msg: "{{ pri_dev.stdout }}"
+
+  - name: Find out the {{ per_dev_GBsize }} LUN provisioned
+    action: shell lsblk -d | grep {{ per_dev_GBsize }} | cut -d' ' -f1
+    register: per_dev
+  - debug:
+      msg: "{{ per_dev.stdout }}"
+
+  - name: Find out the {{ ded_dev_GBsize }} LUN provisioned 
+    action: shell lsblk -d | grep {{ ded_dev_GBsize }} | cut -d' ' -f1
+    register: ded_dev
+  - debug:
+      msg: "{{ ded_dev.stdout }}"
+
+  - debug:
+      msg: "System {{ inventory_hostname }} has IP address {{ ansible_default_ipv4.address }}"
+    when: ansible_default_ipv4.address is defined
+
+  - debug:
+      msg: "System {{ inventory_hostname }} has gateway {{ ansible_default_ipv4.gateway }}"
+    when: ansible_default_ipv4.gateway is defined
+
+  - debug:
+      msg: "System {{ inventory_hostname }} has netmask {{ ansible_default_ipv4.netmask }}"
+    when: ansible_default_ipv4.netmask is defined
+
+  - debug:
+      msg: "System {{ inventory_hostname }} has netmask {{ ansible_default_ipv4.netmask }}"
+    when: ansible_default_ipv4.netmask is defined
+
+  - name: Find out the DNS server
+    action: shell cat /etc/resolv.conf | head -1 | cut -d' ' -f2
+    register: dns_server
+  - debug:
+      msg: "{{ dns_server.stdout }}"
+
+  - name: Create {{ vpas_configfile }}
+    action: shell echo clustername={{ cluster_name }} > {{ vpas_configfile }}
+
+  - name: Append text to {{ vpas_configfile }}
+    shell: |
+      echo "{{ item }}" >> {{ vpas_configfile }}
+    with_items:
+      - clusterip={{ ansible_default_ipv4.address }}
+      - subnet={{ ansible_default_ipv4.netmask }}
+      - gateway={{ ansible_default_ipv4.gateway }}
+      - dnsserver={{ dns_server.stdout }}
+      - dedupsize=5
+      - timezone=Australia/Melbourne
+      - admin=password
+      - infrastructure=vmware
+      - pri_dev={{ pri_dev.stdout }}
+      - per_dev={{ per_dev.stdout }}
+      - ded_dev={{ ded_dev.stdout }}
+
+  - name: Configure the system using {{ vpas_configfile }}
+    action: shell udstask configsystem -file {{ vpas_configfile }}   # configure system
+    register: rslt_cfgsys
+  - debug:
+      msg: "{{ rslt_cfgsys.stdout }}"
